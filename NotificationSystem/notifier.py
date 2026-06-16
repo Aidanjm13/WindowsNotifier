@@ -1,9 +1,11 @@
 import subprocess
 import winreg
 
+
 APP_ID = "MyApp.Notifier"
 APP_NAME = "Notifier"
 
+#creates an app ID in the Windows registry to have the notification come from
 def register_app_id():
     key_path = f"SOFTWARE\\Classes\\AppUserModelId\\{APP_ID}"
     try:
@@ -13,6 +15,7 @@ def register_app_id():
     except Exception as e:
         print(f"Registry error: {e}")
 
+#creates a windows notification with the given title and message
 def show_notification(title, message, silent=True):
     register_app_id()
     
@@ -46,9 +49,3 @@ def show_notification(title, message, silent=True):
         ['powershell', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script],
         capture_output=True
     )
-
-# Silent (default)
-show_notification("Meeting in 5 minutes", "Standup with the team")
-
-# With sound
-show_notification("Urgent!", "Call your manager", silent=False)
