@@ -13,8 +13,8 @@ def register_app_id():
         winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
         winreg.CloseKey(key)
     except Exception as e:
-        print(f"Registry error: {e}")
-
+        #print(f"Registry error: {e}")
+        pass
 #creates a windows notification with the given title and message
 def show_notification(title, message, silent=True):
     register_app_id()
@@ -47,5 +47,6 @@ def show_notification(title, message, silent=True):
     
     subprocess.run(
         ['powershell', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script],
-        capture_output=True
+        capture_output=True,
+        creationflags=subprocess.CREATE_NO_WINDOW
     )
