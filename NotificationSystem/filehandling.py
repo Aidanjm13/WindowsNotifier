@@ -11,7 +11,7 @@ def create_file():
     if not os.path.exists(path):
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["id", "title", "content"])
+            writer.writerow(["id", "appName", "title", "content"])
 
 def get_next_id():
     entries = get_entries()
@@ -19,10 +19,10 @@ def get_next_id():
         return 1
     return max(int(e["id"]) for e in entries) + 1
 
-def add_entry(title, content):
+def add_entry(appName, title, content):
     with open(get_data_path(), "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "title", "content"])
-        writer.writerow({"id": get_next_id(), "title": title, "content": content})
+        writer = csv.DictWriter(f, fieldnames=["id", "appName", "title", "content"])
+        writer.writerow({"id": get_next_id(), "appName": appName, "title": title, "content": content})
 
 def get_entries():
     with open(get_data_path(), "r") as f:
@@ -35,21 +35,21 @@ def get_entry(id):
             return entry
     return None
 
-def update_entry(id, new_title, new_content):
+def update_entry(id, new_appName, new_title, new_content):
     entries = get_entries()
     with open(get_data_path(), "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "title", "content"])
+        writer = csv.DictWriter(f, fieldnames=["id", "appName", "title", "content"])
         writer.writeheader()
         for entry in entries:
             if entry["id"] == str(id):
-                writer.writerow({"id": id, "title": new_title, "content": new_content})
+                writer.writerow({"id": id, "appName": new_appName, "title": new_title, "content": new_content})
             else:
                 writer.writerow(entry)
 
 def delete_entry(id):
     entries = get_entries()
     with open(get_data_path(), "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "title", "content"])
+        writer = csv.DictWriter(f, fieldnames=["id", "appName", "title", "content"])
         writer.writeheader()
         for entry in entries:
             if entry["id"] != str(id):
