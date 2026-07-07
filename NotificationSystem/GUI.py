@@ -130,11 +130,11 @@ class App(tk.Tk):
         self._field(right, self.loop_vars,"sound","Plays Notification Sound","bool")
         if(currentSettings and currentSettings["sound"]): self.loop_vars["sound"].set(True)
         self._field(right, self.loop_vars,"location","Configure Location Options","button","Show")
-        self.selected_positions = currentSettings["selected_positions"] if currentSettings and currentSettings["selected_positions"] else None
+        self.selected_positions = currentSettings["selected_positions"] if currentSettings and currentSettings.get("selected_positions") else self.selected_positions
         self._field(right, self.loop_vars,"textColor","Text Color","button","textColor")
         self.textColor = currentSettings["textColor"] if currentSettings and currentSettings["textColor"] else None
         self._field(right, self.loop_vars,"backColor","Background Color","button","backColor")
-        self.backColor = currentSettings["backColor"] if currentSettings and currentSettings["textSize"] else None
+        self.backColor = currentSettings["backColor"] if currentSettings and currentSettings["backColor"] else None
         textSize = currentSettings["textSize"] if currentSettings and currentSettings["textSize"] else "10"
         self._field(right, self.loop_vars,"textSize","Text Size","int",textSize)
 
