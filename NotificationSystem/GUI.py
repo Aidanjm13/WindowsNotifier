@@ -1,28 +1,27 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from tkinter.colorchooser import askcolor
 import threading
-from filehandling import create_file, get_entries, get_next_id, add_entry, update_entry, delete_entry
+from filehandling import create_file, get_entries, get_next_id, add_entry, update_entry, delete_entry, update_settings, read_settings
 import random
-import notifier
+import math
 import time
 
 # ── Background loop ───────────────────────────────────────────────────────────
 
-def run_loop(app, stop_event, log_fn, interval, range_val, randomized_order, sound,
-             width, height, allowed_positions, duration_ms):
+def run_loop(app, stop_event, log_fn, interval, range_val, randomized_order):
     count = 0
     entries = get_entries()
     if randomized_order:
         random.shuffle(entries)
-    log_fn(f"Settings — interval={interval}, range={range_val}, randomized={randomized_order}, sound={sound}")
+    log_fn(f"Settings — interval={interval}, range={range_val}, randomized={randomized_order}")
     while not stop_event.is_set():
         log_fn(f"Loop tick {count}")
         wait = random.uniform(interval - range_val, interval + range_val)
         time.sleep(wait)
         entry = entries[count % len(entries)]
-        position = random.choice(allowed_positions)
 
-        app.after(0, app.show_entry_window, entry, sound, width, height, position, duration_ms)
+        app.after(0, app.show_entry_window, entry)
 
         count += 1
     log_fn("Loop stopped.")
@@ -33,7 +32,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Notification System")
-        self.geometry("820x700")
+        self.geometry("820x760")
         self.resizable(True, True)
         self.configure(bg="#1e1e2e")
 
@@ -46,6 +45,9 @@ class App(tk.Tk):
             "bottom-left": True, "bottom": True, "bottom-right": True,
         }
 
+        self.textColor = None
+        self.backColor = None
+
         create_file()
         self._build_ui()
         self._refresh_list()
@@ -54,6 +56,7 @@ class App(tk.Tk):
     def _build_ui(self):
         style = ttk.Style(self)
         style.theme_use("clam")
+        currentSettings = read_settings()
         #base style
         style.configure("Treeview",
                         background="#2a2a3e", foreground="#cdd6f4",
@@ -110,17 +113,30 @@ class App(tk.Tk):
                  font=("Segoe UI", 11, "bold")).pack(anchor="w")
 
         self.loop_vars = {}
-        self._field(right,self.loop_vars,"interval","Interval between Notifications","int","20")
-        self._field(right,self.loop_vars,"range","Random Range","int","0")
+        interval = currentSettings["interval"] if currentSettings and currentSettings["interval"] else "20"
+        self._field(right,self.loop_vars,"interval","Interval between Notifications","int",interval)
+        range = currentSettings["range"] if currentSettings and currentSettings["range"] else "0"
+        self._field(right,self.loop_vars,"range","Random Range","int",range)
 
-        self._field(right,self.loop_vars,"length","Display Time","int","3")
-        self._field(right,self.loop_vars,"height","Display Height (pixels)","int","120")
-        self._field(right,self.loop_vars,"width","Display Width (pixels)","int","320")
+        length = currentSettings["length"] if currentSettings and currentSettings["length"] else "3"
+        self._field(right,self.loop_vars,"length","Display Time","int",length)
+        height = currentSettings["height"] if currentSettings and currentSettings["height"] else "120"
+        self._field(right,self.loop_vars,"height","Display Height (pixels)","int",height)
+        width = currentSettings["width"] if currentSettings and currentSettings["width"] else "320"
+        self._field(right,self.loop_vars,"width","Display Width (pixels)","int",width)
 
         self._field(right, self.loop_vars,"randomized_order","Randomized Entry Order", "bool")
+        if(currentSettings["randomized_order"]): self.loop_vars["randomized_order"].set(True)
         self._field(right, self.loop_vars,"sound","Plays Notification Sound","bool")
-
+        if(currentSettings["sound"]): self.loop_vars["sound"].set(True)
         self._field(right, self.loop_vars,"location","Configure Location Options","button","Show")
+        self.selected_positions = currentSettings["selected_positions"] if currentSettings and currentSettings["selected_positions"] else None
+        self._field(right, self.loop_vars,"textColor","Text Color","button","textColor")
+        self.textColor = currentSettings["textColor"] if currentSettings and currentSettings["textColor"] else None
+        self._field(right, self.loop_vars,"backColor","Background Color","button","backColor")
+        self.backColor = currentSettings["backColor"] if currentSettings and currentSettings["textSize"] else None
+        textSize = currentSettings["textSize"] if currentSettings and currentSettings["textSize"] else "10"
+        self._field(right, self.loop_vars,"textSize","Text Size","int",textSize)
 
         # Divider
         tk.Frame(right, bg="#45475a", height=1).pack(fill="x", pady=10)
@@ -128,11 +144,12 @@ class App(tk.Tk):
         # Start / Stop
         ctrl = tk.Frame(right, bg="#1e1e2e")
         ctrl.pack(fill="x", pady=(0, 8))
-        self.start_btn = self._btn(ctrl, "▶  Start", self._start_loop, accent=True)
+        self.start_btn = self._btn(ctrl, "Start/Stop", self._start_stop_loop)
         self.start_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
-        self.stop_btn = self._btn(ctrl, "■  Stop", self._stop_loop, danger=True)
-        self.stop_btn.pack(side="left", fill="x", expand=True)
-        self.stop_btn.configure(state="disabled")
+        self.save_btn = self._btn(ctrl, "Save", self._save_settings)
+        self.save_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        self.default_btn = self._btn(ctrl, "Default", self._default_settings)
+        self.default_btn.pack(side="left", fill="x", expand=True)
 
         # Log
         tk.Label(right, text="Log", bg="#1e1e2e", fg="#cba6f7",
@@ -200,6 +217,9 @@ class App(tk.Tk):
                          bg=bg, fg=fg, activebackground=abg,
                          relief="flat", font=("Segoe UI", 9), padx=8, pady=4)
 
+    def change_color():
+        colors = askcolor(title="Tkinter Color Chooser")
+
     #Functions for handling list features
 
     #refresh all rows in the list based on saved file, store ids in iid
@@ -257,8 +277,10 @@ class App(tk.Tk):
     def _on_button_click(self, field):
         if field == "location":
             self._open_location_picker()
-        elif field == "color":
-            self._open_color_picker()
+        elif field == "backColor":
+            self.backColor = askcolor()[1]
+        elif field == "textColor":
+            self.textColor = askcolor()[1]
 
     def _open_location_picker(self):
         popup = tk.Toplevel(self)
@@ -315,20 +337,18 @@ class App(tk.Tk):
         self.log_box.see("end")
         self.log_box.configure(state="disabled")
 
-    def _start_loop(self):
+    def _start_stop_loop(self):
         if self.loop_thread and self.loop_thread.is_alive():
+            if self.stop_event:
+                self.stop_event.set()
             return
         try:
             interval = int(self.loop_vars["interval"].get())
             range_val = int(self.loop_vars["range"].get())
-            window_width = int(self.loop_vars["width"].get())
-            window_height = int(self.loop_vars["height"].get())
-            duration_ms = int(self.loop_vars["length"].get()) * 1000
         except ValueError:
             messagebox.showerror("Invalid input", "Interval, Range, Width, Height, and Display Time must be integers.")
             return
         randomized_order = self.loop_vars["randomized_order"].get()
-        sound = self.loop_vars["sound"].get()
 
         allowed_positions = [pos for pos, enabled in self.selected_positions.items() if enabled]
         if not allowed_positions:
@@ -338,23 +358,54 @@ class App(tk.Tk):
         self.loop_thread = threading.Thread(
             target=run_loop,
             args=(self, self.stop_event, self._log, interval, range_val,
-                randomized_order, sound, window_width, window_height,
-                allowed_positions, duration_ms),
+                randomized_order),
             daemon=True)
         self.loop_thread.start()
-        self.start_btn.configure(state="disabled")
-        self.stop_btn.configure(state="normal")
         self._log("Loop started.")
 
-    def _stop_loop(self):
-        if self.stop_event:
-            self.stop_event.set()
-        self.start_btn.configure(state="normal")
-        self.stop_btn.configure(state="disabled")
+    def _save_settings(self):
+        settingsJson = {
+            "interval": self.loop_vars["interval"].get(),
+            "range": self.loop_vars["range"].get(),
+            "length": self.loop_vars["length"].get(),
+            "width": self.loop_vars["width"].get(),
+            "height": self.loop_vars["height"].get(),
+            "randomized_order": self.loop_vars["randomized_order"].get(),
+            "sound": self.loop_vars["sound"].get(),
+            "textColor": self.textColor,
+            "backColor": self.backColor,
+            "textSize": self.loop_vars["textSize"].get(),
+            "selected_positions": self.selected_positions
+        }
+        update_settings(settingsJson)
 
-    def show_entry_window(self, entry, sound, width=320, height=120, position="bottom-right", duration_ms=4000):
+    def _default_settings(self):
+        self.loop_vars["interval"].set("20")
+        self.loop_vars["range"].set("0")
+        self.loop_vars["length"].set("3")
+        self.loop_vars["width"].set("320")
+        self.loop_vars["height"].set("120")
+        self.loop_vars["randomized_order"].set(False)
+        self.loop_vars["sound"].set(False)
+        self.textColor = None
+        self.backColor = None
+        self.loop_vars["textSize"].set("10")
+        self.selected_positions = {
+            "top-left": True, "top": True, "top-right": True,
+            "left": True, "center": False, "right": True,
+            "bottom-left": True, "bottom": True, "bottom-right": True,
+        }
+
+
+    def show_entry_window(self, entry):
         """Runs on the main thread — safe to touch widgets here."""
         win = tk.Toplevel(self)
+
+        width = int(self.loop_vars["width"].get())
+        height = int(self.loop_vars["height"].get())
+        duration_ms = int(self.loop_vars["length"].get()) * 1000
+        textSize = int(self.loop_vars["textSize"].get())
+        position = random.choice([pos for pos, enabled in self.selected_positions.items() if enabled])
 
         # Remove the title bar / border entirely (no close button, no drag bar)
         win.overrideredirect(True)
@@ -377,13 +428,12 @@ class App(tk.Tk):
         win.geometry(f"{width}x{height}+{x}+{y}")
 
         # ── Notification-style layout ──────────────────────────────────────
-        bg = "#2b2b2b"       # Windows 10/11 dark-mode toast background
-        fg_title = "#ffffff"
-        fg_app = "#a0a0a0"
-        fg_content = "#d0d0d0"
+        bg = "#2b2b2b" if self.backColor == None else self.backColor       # Windows 10/11 dark-mode toast background
+        fg_title = "#ffffff" if self.textColor == None else self.textColor
+        fg_app = "#a0a0a0" if self.textColor == None else self.textColor
+        fg_content = "#d0d0d0" if self.textColor == None else self.textColor
 
         win.configure(bg=bg)
-
         outer = tk.Frame(win, bg=bg, highlightbackground="#454545",
                         highlightthickness=1, bd=0)
         outer.pack(fill="both", expand=True)
@@ -394,18 +444,19 @@ class App(tk.Tk):
         # App name — pushed to the top right
         app_name = entry.get("appName", "Notification")
         tk.Label(padding, text=app_name, bg=bg, fg=fg_app,
-                font=("Segoe UI", 8)).pack(anchor="e")
+                font=("Segoe UI", math.floor(textSize*0.8))).pack(anchor="e")
 
         # Title — bold, left aligned
         tk.Label(padding, text=entry["title"], bg=bg, fg=fg_title,
-                font=("Segoe UI", 10, "bold"), anchor="w", justify="left",
+                font=("Segoe UI", textSize, "bold"), anchor="w", justify="left",
                 wraplength=width - 30).pack(anchor="w", pady=(4, 2), fill="x")
 
         # Content — normal weight, left aligned
         tk.Label(padding, text=entry["content"], bg=bg, fg=fg_content,
-                font=("Segoe UI", 9), anchor="w", justify="left",
+                font=("Segoe UI", math.floor(textSize*0.9)), anchor="w", justify="left",
                 wraplength=width - 30).pack(anchor="w", fill="x")
 
+        if(self.loop_vars["sound"].get()): self.bell()
         # ── Topmost handling ─────────────────────────────────────────────
         win.attributes("-topmost", True)
         win.lift()

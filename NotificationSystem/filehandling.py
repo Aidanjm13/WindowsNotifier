@@ -1,10 +1,28 @@
 import os
 import csv
+import json
+import sys
+
+
+def get_app_data_dir():
+    app_name = "WindowsNotifier"
+    author = "Aidanjm13"
+
+    if sys.platform == "win32":
+        base = os.environ["LOCALAPPDATA"]
+        path = os.path.join(base, author, app_name)
+    elif sys.platform == "darwin":
+        path = os.path.join(os.path.expanduser("~/Library/Application Support"), app_name)
+    else:  # Linux and other Unix-likes
+        base = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+        path = os.path.join(base, app_name)
+
+    os.makedirs(path, exist_ok=True)
+    return path
 
 def get_data_path():
-    app_data = os.path.join(os.environ["LOCALAPPDATA"], "Aidanjm13", "WindowsNotifier")
-    os.makedirs(app_data, exist_ok=True)
-    return os.path.join(app_data, "data.csv")
+    return os.path.join(get_app_data_dir(), "data.csv")
+
 
 def create_file():
     path = get_data_path()
@@ -54,3 +72,18 @@ def delete_entry(id):
         for entry in entries:
             if entry["id"] != str(id):
                 writer.writerow(entry)
+
+def get_settings_path():
+    return os.path.join(get_app_data_dir(), "settings.json")
+
+def read_settings():
+    filepath = get_settings_path()
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            return json.load(f)
+    else:
+        return None
+    
+def update_settings(settingsDict):
+    with open(get_settings_path(), "w") as f:
+            json.dump(settingsDict, f)
