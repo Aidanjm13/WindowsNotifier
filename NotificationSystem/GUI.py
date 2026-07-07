@@ -126,9 +126,9 @@ class App(tk.Tk):
         self._field(right,self.loop_vars,"width","Display Width (pixels)","int",width)
 
         self._field(right, self.loop_vars,"randomized_order","Randomized Entry Order", "bool")
-        if(currentSettings["randomized_order"]): self.loop_vars["randomized_order"].set(True)
+        if(currentSettings and currentSettings["randomized_order"]): self.loop_vars["randomized_order"].set(True)
         self._field(right, self.loop_vars,"sound","Plays Notification Sound","bool")
-        if(currentSettings["sound"]): self.loop_vars["sound"].set(True)
+        if(currentSettings and currentSettings["sound"]): self.loop_vars["sound"].set(True)
         self._field(right, self.loop_vars,"location","Configure Location Options","button","Show")
         self.selected_positions = currentSettings["selected_positions"] if currentSettings and currentSettings["selected_positions"] else None
         self._field(right, self.loop_vars,"textColor","Text Color","button","textColor")
