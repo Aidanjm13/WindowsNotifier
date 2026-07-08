@@ -1,6 +1,9 @@
-name: Build Executables
+name: Build and Release
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -27,7 +30,40 @@ jobs:
 
       - run: pyinstaller --onefile --windowed --name NotificationSystem GUI.py
 
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist/NotificationSystem.exe -DestinationPath dist/NotificationSystem-windows.zip
+
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        run: |
+          chmod +x dist/NotificationSystem.app/Contents/MacOS/NotificationSystem
+          ditto -c -k --sequesterRsrc --keepParent dist/NotificationSystem.app dist/NotificationSystem-macos.zip
+
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x dist/NotificationSystem
+          tar -czvf dist/NotificationSystem-linux.tar.gz dist/NotificationSystem
+
       - uses: actions/upload-artifact@v4
         with:
           name: NotificationSystem-${{ matrix.os }}
-          path: NotificationSystem/dist/*
+          path: |
+            NotificationSystem/dist/*.zip
+            NotificationSystem/dist/*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
